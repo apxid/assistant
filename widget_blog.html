@@ -33,6 +33,7 @@
         .bubble { 
             padding: 10px 14px; margin: 8px 15px; border-radius: 15px; 
             max-width: 80%; font-size: 14.5px; line-height: 1.4; position: relative; word-wrap: break-word;
+            display: flex; flex-direction: column;
         }
         .bubble::after { content: ""; position: absolute; bottom: 0; width: 15px; height: 15px; }
 
@@ -41,6 +42,35 @@
 
         .user { background: #dcf8c6; align-self: flex-end; border-bottom-right-radius: 0; color: #303030; }
         .user::after { right: -7px; background: #dcf8c6; clip-path: polygon(0 100%, 100% 100%, 0 0); }
+        
+        /* --- KODE BARU: Styling untuk info Waktu & Ikon Centang --- */
+        .meta-container {
+            display: flex;
+            align-items: center;
+            align-self: flex-end;
+            margin-top: 4px;
+            margin-bottom: -4px;
+            margin-right: -4px;
+            gap: 3px;
+            user-select: none;
+        }
+
+        .chat-time {
+            font-size: 10px;
+            color: #808080;
+        }
+
+        .ticks {
+            font-size: 11px;
+            line-height: 1;
+            font-weight: bold;
+        }
+        .ticks.sent {
+            color: #8696a0; /* Abu-abu (Terkirim) */
+        }
+        .ticks.read {
+            color: #53bdeb; /* Biru (Sukses Respons) */
+        }
         
         #input-area { padding: 10px; background: white; display: flex; border-radius: 0 0 20px 20px; align-items: center; }
         #user-input { flex: 1; padding: 10px; border-radius: 20px; border: 1px solid #ddd; outline: none; }
@@ -74,6 +104,15 @@
         
         let isWaitingForName = false;
         let typeTimer;
+        let lastUserMessageElement = null; // Menyimpan element centang terakhir
+
+        /* --- KODE BARU: Fungsi Helper Waktu --- */
+        function getFormattedTime() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            return `${hours}:${minutes}`;
+        }
 
         function startTypewriter() {
             const el = document.getElementById('app-name');
@@ -119,11 +158,39 @@
             }, 500);
         }
 
+        /* --- REVISI: Fungsi addMessage untuk membuat komponen teks, waktu, dan centang --- */
         function addMessage(text, sender) {
             const body = document.getElementById('chat-body');
             const div = document.createElement('div');
             div.className = `bubble ${sender}`;
-            div.innerText = text;
+            
+            // Bungkus isi pesan teks utama
+            const textSpan = document.createElement('span');
+            textSpan.innerText = text;
+            div.appendChild(textSpan);
+            
+            // Buat kontainer pembungkus meta info (waktu & centang)
+            const metaContainer = document.createElement('div');
+            metaContainer.className = 'meta-container';
+            
+            // Tambahkan text waktu saat ini
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'chat-time';
+            timeSpan.innerText = getFormattedTime();
+            metaContainer.appendChild(timeSpan);
+            
+            // Khusus pesan dari USER, pasang elemen centang dua (status awal abu-abu)
+            if (sender === 'user') {
+                const ticksSpan = document.createElement('span');
+                ticksSpan.className = 'ticks sent';
+                ticksSpan.innerHTML = '&#10004;&#10004;'; // Simbol dua centang (✔✔)
+                metaContainer.appendChild(ticksSpan);
+                
+                // Simpan referensi ke variabel global agar bisa dimanipulasi setelah fetch
+                lastUserMessageElement = ticksSpan;
+            }
+
+            div.appendChild(metaContainer);
             body.appendChild(div);
             body.scrollTop = body.scrollHeight;
         }
@@ -140,6 +207,11 @@
                 localStorage.setItem('panda_user', val);
                 isWaitingForName = false;
                 addMessage(`Halo ${val}! Apa yang ingin ditanyakan?`, 'panda');
+                
+                // Jika hanya interaksi nama lokal, langsung ubah menjadi biru
+                if (lastUserMessageElement) {
+                    lastUserMessageElement.className = 'ticks read';
+                }
                 return;
             }
 
@@ -149,12 +221,21 @@
             document.getElementById('chat-body').appendChild(typing);
             document.getElementById('chat-body').scrollTop = document.getElementById('chat-body').scrollHeight;
 
+            // Kunci element centang pesan ini agar tidak tertukar jika user mengirim chat dengan cepat
+            const currentTicks = lastUserMessageElement;
+
             try {
                 const url = `${GAS_URL}?question=${encodeURIComponent(val)}&userName=${encodeURIComponent(localStorage.getItem('panda_user') || 'Pengunjung')}`;
                 const res = await fetch(url, { method: 'GET' });
                 const data = await res.json();
                 
                 typing.remove();
+                
+                // Mengubah warna centang pesan user menjadi biru setelah sukses merespons
+                if (currentTicks) {
+                    currentTicks.className = 'ticks read';
+                }
+                
                 addMessage(data.answer, 'panda');
             } catch(err) {
                 typing.remove();
