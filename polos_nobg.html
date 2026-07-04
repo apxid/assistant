@@ -14,7 +14,7 @@
             padding: 0;
             width: 100%;
             height: 100%;
-            /* --- KODE BARU: Background Halaman Utama Luar Chat --- */
+            /* --- Background Halaman Utama Luar Chat --- */
             background-image: url('http://apxid.github.io/assistant/assets/bg.png');
             background-size: cover;
             background-position: center;
@@ -73,7 +73,7 @@
             flex: 1; 
             padding: 15px; 
             overflow-y: auto; 
-            /* --- KODE BARU: Background Gambar Ruang Obrolan Chat --- */
+            /* --- Background Gambar Ruang Obrolan Chat --- */
             background-image: url('http://apxid.github.io/assistant/assets/bg.png');
             background-size: cover;
             background-position: center;
@@ -83,7 +83,7 @@
             -webkit-overflow-scrolling: touch; /* Scroll smooth untuk iOS */
         }
         
-        /* --- KODE BARU: Responsive Pengaturan Letak Gambar di HP --- */
+        /* --- Responsive Pengaturan Letak Gambar di HP --- */
         @media (max-width: 768px) {
             html, body, #chat-body {
                 /* Menggeser fokus gambar ke arah kiri (25%) agar panda kecil di kiri bawah terlihat utuh */
@@ -95,6 +95,8 @@
             padding: 10px 14px; margin: 8px 15px; border-radius: 15px; 
             max-width: 80%; font-size: 14.5px; line-height: 1.4; position: relative; word-wrap: break-word;
             box-shadow: 0 1px 2px rgba(0,0,0,0.15); /* Bayangan halus agar balon chat kontras dengan gambar */
+            display: flex;
+            flex-direction: column;
         }
         .bubble::after { content: ""; position: absolute; bottom: 0; width: 15px; height: 15px; }
 
@@ -103,6 +105,35 @@
 
         .user { background: #dcf8c6; align-self: flex-end; border-bottom-right-radius: 0; color: #303030; }
         .user::after { right: -7px; background: #dcf8c6; clip-path: polygon(0 100%, 100% 100%, 0 0); }
+        
+        /* --- KODE BARU: Struktur wadah info waktu dan centang dua --- */
+        .meta-container {
+            display: flex;
+            align-items: center;
+            align-self: flex-end;
+            margin-top: 4px;
+            margin-bottom: -4px;
+            margin-right: -4px;
+            gap: 3px;
+            user-select: none;
+        }
+
+        .chat-time {
+            font-size: 10px;
+            color: #808080;
+        }
+
+        .ticks {
+            font-size: 11px;
+            line-height: 1;
+            font-weight: bold;
+        }
+        .ticks.sent {
+            color: #8696a0; /* Abu-abu (Terkirim) */
+        }
+        .ticks.read {
+            color: #53bdeb; /* Biru (Sukses direspons sistem) */
+        }
         
         /* Input area rata di bawah screen HP */
         #input-area { 
@@ -144,6 +175,15 @@
         
         let isWaitingForName = false;
         let typeTimer;
+        let lastUserMessageElement = null; // Menyimpan status element centang terakhir
+
+        /* --- KODE BARU: Ambil waktu saat ini format HH:MM --- */
+        function getFormattedTime() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            return `${hours}:${minutes}`;
+        }
 
         function startTypewriter() {
             const el = document.getElementById('app-name');
@@ -189,11 +229,36 @@
             }, 500);
         }
 
+        /* --- REVISI: Fungsi penyusunan elemen teks chat, waktu, dan simbol centang --- */
         function addMessage(text, sender) {
             const body = document.getElementById('chat-body');
             const div = document.createElement('div');
             div.className = `bubble ${sender}`;
-            div.innerText = text;
+            
+            const textSpan = document.createElement('span');
+            textSpan.innerText = text;
+            div.appendChild(textSpan);
+            
+            // Membuat wadah info
+            const metaContainer = document.createElement('div');
+            metaContainer.className = 'meta-container';
+            
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'chat-time';
+            timeSpan.innerText = getFormattedTime();
+            metaContainer.appendChild(timeSpan);
+            
+            // Jika dikirim oleh user, pasang centang dua status abu-abu
+            if (sender === 'user') {
+                const ticksSpan = document.createElement('span');
+                ticksSpan.className = 'ticks sent';
+                ticksSpan.innerHTML = '&#10004;&#10004;'; // Kode centang dua (✔✔)
+                metaContainer.appendChild(ticksSpan);
+                
+                lastUserMessageElement = ticksSpan;
+            }
+
+            div.appendChild(metaContainer);
             body.appendChild(div);
             body.scrollTop = body.scrollHeight;
         }
@@ -210,6 +275,10 @@
                 localStorage.setItem('panda_user', val);
                 isWaitingForName = false;
                 addMessage(`Halo ${val}! Apa yang ingin ditanyakan?`, 'panda');
+                
+                if (lastUserMessageElement) {
+                    lastUserMessageElement.className = 'ticks read';
+                }
                 return;
             }
 
@@ -219,12 +288,20 @@
             document.getElementById('chat-body').appendChild(typing);
             document.getElementById('chat-body').scrollTop = document.getElementById('chat-body').scrollHeight;
 
+            const currentTicks = lastUserMessageElement;
+
             try {
                 const url = `${GAS_URL}?question=${encodeURIComponent(val)}&userName=${encodeURIComponent(localStorage.getItem('panda_user') || 'Pengunjung')}`;
                 const res = await fetch(url, { method: 'GET' });
                 const data = await res.json();
                 
                 typing.remove();
+                
+                // Mengubah status centang menjadi warna biru sesaat setelah GAS sukses memberikan respons balik
+                if (currentTicks) {
+                    currentTicks.className = 'ticks read';
+                }
+                
                 addMessage(data.answer, 'panda');
             } catch(err) {
                 typing.remove();
