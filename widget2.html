@@ -7,16 +7,32 @@
     <style>
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-            /* --- KODE BARU: Pengaturan Background Gambar Responsif --- */
             background-image: url('http://apxid.github.io/assistant/assets/bg.png');
-            background-size: cover;         /* Memastikan gambar memenuhi seluruh layar secara proporsional */
-            background-position: center;     /* Menjaga bagian tengah gambar tetap fokus saat di-resize */
-            background-repeat: no-repeat;    /* Mencegah gambar mengulang (tiling) */
-            background-attachment: fixed;    /* Background tetap diam saat halaman di-scroll */
-            margin: 0;                       /* Menghilangkan margin bawaan browser */
+            background-size: cover;         
+            background-position: center;     /* Default desktop: tengah */
+            background-repeat: no-repeat;    
+            background-attachment: fixed;    
+            margin: 0;                       
             padding: 0;
-            background-color: #f4f7f6;       /* Warna cadangan jika koneksi gambar lambat */
+            background-color: #f4f7f6;       
             min-height: 100vh;
+        }
+
+        /* --- REVISI KODE: Menggeser background di HP agar Panda terlihat --- */
+        @media (max-width: 768px) {
+            body {
+                /* Menggeser fokus gambar ke arah kiri (25%) agar panda kecil di kiri bawah tidak terpotong */
+                background-position: 25% center; 
+            }
+            
+            /* Menyesuaikan ukuran kotak chat di HP agar tidak terlalu mentok ke pinggir layar */
+            #panda-chat {
+                width: 90% !important;
+                max-width: 340px;
+                right: 5% !important;
+                left: 5% !important;
+                margin: 0 auto;
+            }
         }
         
         @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
