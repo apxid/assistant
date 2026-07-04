@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Panda Assistant</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#075E54">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="apple-touch-icon" href="https://apxid.github.io/assistant/assets/panda.png">
+
     <style>
         /* Reset margin dan padding agar benar-benar full screen */
         * {
@@ -73,16 +80,19 @@
             flex: 1; 
             padding: 15px; 
             overflow-y: auto; 
-            background: #e5ddd5; 
+            /* --- Background Gambar Ruang Obrolan Chat --- */
+            background-image: url('http://apxid.github.io/assistant/assets/bg.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
             display: flex; 
             flex-direction: column; 
             -webkit-overflow-scrolling: touch; /* Scroll smooth untuk iOS */
         }
         
-        /* Responsive Pengaturan Letak Gambar di HP (Halaman Utama) */
+        /* --- Responsive Pengaturan Letak Gambar di HP (Halaman Utama) --- */
         @media (max-width: 768px) {
-            html, body {
-                /* Menggeser fokus gambar ke arah kiri (25%) agar panda kecil di kiri bawah terlihat utuh sebelum chat dibuka */
+            html, body, #chat-body {
                 background-position: 25% center; 
             }
         }
@@ -117,17 +127,17 @@
             color: #808080;
         }
 
-        /* --- KODE BARU: Styling Ikon Centang Dua --- */
+        /* Ikon Centang Dua */
         .ticks {
             font-size: 11px;
             line-height: 1;
             font-weight: bold;
         }
         .ticks.sent {
-            color: #8696a0; /* Abu-abu (Terkirim) */
+            color: #8696a0; 
         }
         .ticks.read {
-            color: #53bdeb; /* Biru (Sukses dibaca/direspons) */
+            color: #53bdeb; 
         }
 
         /* Input area rata di bawah screen HP */
@@ -137,9 +147,9 @@
             display: flex; 
             align-items: center; 
             border-top: 1px solid #ddd;
-            padding-bottom: calc(12px + env(safe-area-inset-bottom)); /* Menghindari notch/home bar bawah iPhone modern */
+            padding-bottom: calc(12px + env(safe-area-inset-bottom)); 
         }
-        #user-input { flex: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #ddd; outline: none; font-size: 16px; /* Cegah auto-zoom di iOS */}
+        #user-input { flex: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #ddd; outline: none; font-size: 16px; }
         #send-btn { background: none; border: none; color: #075E54; font-size: 24px; cursor: pointer; padding: 0 10px; display: flex; align-items: center; }
     </style>
 </head>
@@ -170,7 +180,16 @@
         
         let isWaitingForName = false;
         let typeTimer;
-        let lastUserMessageElement = null; // Menyimpan element chat terakhir user untuk diubah centangnya
+        let lastUserMessageElement = null;
+
+        // --- KODE PWA BARU: Registrasi Service Worker ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker terdaftar!', reg))
+                    .catch(err => console.log('Service Worker gagal terdaftar:', err));
+            });
+        }
 
         function getFormattedTime() {
             const now = new Date();
@@ -223,35 +242,29 @@
             }, 500);
         }
 
-        // --- REVISI: Fungsi addMessage mendukung penambahan centang khusus untuk 'user' ---
         function addMessage(text, sender) {
             const body = document.getElementById('chat-body');
             const div = document.createElement('div');
             div.className = `bubble ${sender}`;
             
-            // Isi teks chat
             const textSpan = document.createElement('span');
             textSpan.innerText = text;
             div.appendChild(textSpan);
             
-            // Container info (Waktu & Centang)
             const metaContainer = document.createElement('div');
             metaContainer.className = 'meta-container';
             
-            // Teks Waktu
             const timeSpan = document.createElement('span');
             timeSpan.className = 'chat-time';
             timeSpan.innerText = getFormattedTime();
             metaContainer.appendChild(timeSpan);
             
-            // Jika pengirim adalah USER, tambahkan centang dua abu-abu (status awal terkirim)
             if (sender === 'user') {
                 const ticksSpan = document.createElement('span');
                 ticksSpan.className = 'ticks sent';
-                ticksSpan.innerHTML = '&#10004;&#10004;'; // Entitas HTML untuk dua centang (✔✔)
+                ticksSpan.innerHTML = '&#10004;&#10004;'; 
                 metaContainer.appendChild(ticksSpan);
                 
-                // Simpan element pembungkus centang ini ke variabel global agar bisa diganti warnanya nanti
                 lastUserMessageElement = ticksSpan;
             }
 
@@ -273,7 +286,6 @@
                 isWaitingForName = false;
                 addMessage(`Halo ${val}! Apa yang ingin ditanyakan?`, 'panda');
                 
-                // Jika hanya menyimpan nama (instant response lokal), langsung ubah jadi biru
                 if (lastUserMessageElement) {
                     lastUserMessageElement.className = 'ticks read';
                 }
@@ -286,7 +298,6 @@
             document.getElementById('chat-body').appendChild(typing);
             document.getElementById('chat-body').scrollTop = document.getElementById('chat-body').scrollHeight;
 
-            // Simpan element centang pesan ini agar tidak tertukar jika user mengetik super cepat
             const currentTicks = lastUserMessageElement;
 
             try {
@@ -296,7 +307,6 @@
                 
                 typing.remove();
                 
-                // --- KODE BARU: Jika sistem sukses merespons, ubah centang pesan tadi menjadi BIRU ---
                 if (currentTicks) {
                     currentTicks.className = 'ticks read';
                 }
