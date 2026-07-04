@@ -2,18 +2,23 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Panda Assistant</title>
     <style>
         /* Reset margin dan padding agar benar-benar full screen */
         * {
             box-sizing: border-box;
         }
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+        html, body {
             margin: 0;
             padding: 0;
+            width: 100%;
+            height: 100%;
             background-color: #e5ddd5;
+            overflow: hidden; /* Mencegah scroll pada body utama mobile */
+        }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
         }
         
         @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -23,17 +28,17 @@
         #panda-icon img { width: 70px; transition: transform 0.2s; }
         #panda-icon img:hover { transform: scale(1.1); }
         
-        /* Diubah menjadi Full Screen */
+        /* Set Full Screen Menggunakan dvh (Dynamic Viewport Height) agar tidak kepotong URL bar browser HP */
         #panda-chat { 
             position: fixed; 
             top: 0; 
             left: 0; 
-            width: 100%; 
-            height: 100%; 
+            width: 100vw; 
+            height: 100dvh; /* Mengikuti tinggi asli layar HP */
             background: white; 
             display: flex; 
             flex-direction: column; 
-            overflow: visible; 
+            overflow: hidden; 
             z-index: 9999;
             will-change: transform, opacity;
         }
@@ -42,11 +47,31 @@
         #panda-chat.closing { animation: tvOff 0.5s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards; }
         .hidden { display: none !important; }
         
-        /* Header disesuaikan (border-radius dihapus agar flat) */
-        .header { background: #075E54; color: white; padding: 15px; display: flex; align-items: center; justify-content: space-between; }
-        .header-logo { width: 60px; margin-right: 10px; margin-top: -30px; }
+        /* Header Disesuaikan posisinya agar rapi di HP */
+        .header { 
+            background: #075E54; 
+            color: white; 
+            padding: 15px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between;
+            height: 60px; /* Di-lock tingginya agar konsisten */
+        }
+        .header-logo { 
+            width: 40px; /* Ukuran logo dioptimalkan untuk mobile */
+            height: auto;
+            margin-right: 10px; 
+        }
         
-        #chat-body { flex: 1; padding: 15px; overflow-y: auto; background: #e5ddd5; display: flex; flex-direction: column; }
+        #chat-body { 
+            flex: 1; 
+            padding: 15px; 
+            overflow-y: auto; 
+            background: #e5ddd5; 
+            display: flex; 
+            flex-direction: column; 
+            -webkit-overflow-scrolling: touch; /* Scroll smooth untuk iOS */
+        }
         
         .bubble { 
             padding: 10px 14px; margin: 8px 15px; border-radius: 15px; 
@@ -60,10 +85,17 @@
         .user { background: #dcf8c6; align-self: flex-end; border-bottom-right-radius: 0; color: #303030; }
         .user::after { right: -7px; background: #dcf8c6; clip-path: polygon(0 100%, 100% 100%, 0 0); }
         
-        /* Input area disesuaikan (border-radius dihapus agar flat di bawah layar) */
-        #input-area { padding: 10px; background: white; display: flex; align-items: center; border-top: 1px solid #eee; }
-        #user-input { flex: 1; padding: 10px; border-radius: 20px; border: 1px solid #ddd; outline: none; }
-        #send-btn { background: none; border: none; color: #075E54; font-size: 24px; cursor: pointer; padding: 0 10px; }
+        /* Input area rata di bawah screen HP */
+        #input-area { 
+            padding: 12px; 
+            background: #f0f0f0; 
+            display: flex; 
+            align-items: center; 
+            border-top: 1px solid #ddd;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom)); /* Menghindari notch/home bar bawah iPhone modern */
+        }
+        #user-input { flex: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #ddd; outline: none; font-size: 16px; /* Cegah auto-zoom di iOS */}
+        #send-btn { background: none; border: none; color: #075E54; font-size: 24px; cursor: pointer; padding: 0 10px; display: flex; align-items: center; }
     </style>
 </head>
 <body>
@@ -77,9 +109,9 @@
         <div class="header">
             <div style="display:flex; align-items:center;">
                 <img src="https://apxid.github.io/assistant/assets/panda.png" class="header-logo">
-                <span id="app-name" style="font-weight:600; font-size:15px;"></span>
+                <span id="app-name" style="font-weight:600; font-size:16px; letter-spacing: 0.5px;"></span>
             </div>
-            <button onclick="closeChat()" style="background:none; border:none; color:white; font-size:20px; cursor:pointer;">×</button>
+            <button onclick="closeChat()" style="background:none; border:none; color:white; font-size:26px; cursor:pointer; line-height: 1;">×</button>
         </div>
         <div id="chat-body"></div>
         <div id="input-area">
