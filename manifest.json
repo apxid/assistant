@@ -1,0 +1,22 @@
+{
+  "name": "Panda Assistant Chatbot",
+  "short_name": "Panda AS",
+  "description": "Asisten Pintar Panda berbasis Web App",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background-color": "#e5ddd5",
+  "theme-color": "#075E54",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://apxid.github.io/assistant/assets/panda.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://apxid.github.io/assistant/assets/panda.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
