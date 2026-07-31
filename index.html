@@ -182,7 +182,15 @@
         let typeTimer;
         let lastUserMessageElement = null;
 
-        // --- KODE PWA BARU: Registrasi Service Worker ---
+        // --- MANAJEMEN SESSION ID ---
+        let sessionId = localStorage.getItem('panda_session_id');
+        if (!sessionId) {
+            sessionId = 'sess_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+            localStorage.setItem('panda_session_id', sessionId);
+        }
+        // ----------------------------
+
+        // --- KODE PWA: Registrasi Service Worker ---
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js')
@@ -200,7 +208,7 @@
 
         function startTypewriter() {
             const el = document.getElementById('app-name');
-            const text = "PANDA ASSISTANT   ";
+            const text = "PANDA ASSISTANT    ";
             let i = 0;
             function type() {
                 el.innerText = text.substring(0, i);
@@ -281,14 +289,24 @@
             addMessage(val, 'user');
             input.value = '';
 
+            // Jika sedang menunggu nama, simpan lokal dan KIRIM ke GAS agar tercatat di sheet UserSession
             if (isWaitingForName) {
                 localStorage.setItem('panda_user', val);
                 isWaitingForName = false;
-                addMessage(`Halo ${val}! Apa yang ingin ditanyakan?`, 'panda');
                 
                 if (lastUserMessageElement) {
                     lastUserMessageElement.className = 'ticks read';
                 }
+
+                // Kirim data nama & sessionId ke server GAS
+                try {
+                    const url = `${GAS_URL}?question=${encodeURIComponent("perkenalan_nama")}&userName=${encodeURIComponent(val)}&sessionId=${encodeURIComponent(sessionId)}`;
+                    await fetch(url, { method: 'GET' });
+                } catch(e) {
+                    console.log("Gagal sinkronisasi nama ke server");
+                }
+
+                addMessage(`Halo ${val}! Apa yang ingin ditanyakan?`, 'panda');
                 return;
             }
 
@@ -301,7 +319,10 @@
             const currentTicks = lastUserMessageElement;
 
             try {
-                const url = `${GAS_URL}?question=${encodeURIComponent(val)}&userName=${encodeURIComponent(localStorage.getItem('panda_user') || 'Pengunjung')}`;
+                // Menyertakan userName dan sessionId pada setiap request chat
+                const currentUserName = localStorage.getItem('panda_user') || 'Pengunjung';
+                const url = `${GAS_URL}?question=${encodeURIComponent(val)}&userName=${encodeURIComponent(currentUserName)}&sessionId=${encodeURIComponent(sessionId)}`;
+                
                 const res = await fetch(url, { method: 'GET' });
                 const data = await res.json();
                 
