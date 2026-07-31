@@ -106,6 +106,7 @@
         let isWaitingForName = false;
         let lastUserMessageElement = null;
 
+        // --- MANAJEMEN SESSION ID ---
         let sessionId = localStorage.getItem('panda_session_id');
         if (!sessionId) {
             sessionId = 'sess_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
@@ -189,7 +190,8 @@
             addMessage(val, 'user');
             input.value = '';
 
-            // Jika sedang menunggu nama, simpan lokal DAN langsung kirim ke GAS
+            const currentSessionId = localStorage.getItem('panda_session_id') || sessionId;
+
             if (isWaitingForName) {
                 localStorage.setItem('panda_user', val);
                 isWaitingForName = false;
@@ -199,11 +201,11 @@
                 }
 
                 try {
-                    const url = `${GAS_URL}?question=${encodeURIComponent("perkenalan_nama")}&userName=${encodeURIComponent(val)}&sessionId=${encodeURIComponent(sessionId)}`;
+                    const url = `${GAS_URL}?question=${encodeURIComponent("perkenalan_nama")}&userName=${encodeURIComponent(val)}&sessionId=${encodeURIComponent(currentSessionId)}`;
                     await fetch(url, { method: 'GET' });
-                    console.log("Nama berhasil dikirim ke server!");
+                    console.log("Nama berhasil dikirim:", val, "Session:", currentSessionId);
                 } catch(e) {
-                    console.log("Gagal mengirim nama ke server:", e);
+                    console.log("Gagal mengirim nama:", e);
                 }
 
                 addMessage(`Halo ${val}! Apa yang ingin ditanyakan?`, 'panda');
@@ -220,7 +222,7 @@
 
             try {
                 const currentUserName = localStorage.getItem('panda_user') || 'Pengunjung';
-                const url = `${GAS_URL}?question=${encodeURIComponent(val)}&userName=${encodeURIComponent(currentUserName)}&sessionId=${encodeURIComponent(sessionId)}`;
+                const url = `${GAS_URL}?question=${encodeURIComponent(val)}&userName=${encodeURIComponent(currentUserName)}&sessionId=${encodeURIComponent(currentSessionId)}`;
                 
                 const res = await fetch(url, { method: 'GET' });
                 const data = await res.json();
