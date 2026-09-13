@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Panda Assistant</title>
+
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#075E54">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="apple-touch-icon" href="https://apxid.github.io/assistant/assets/panda.png">
+
+    <style>
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('http://apxid.github.io/assistant/assets/bg.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            background-color: #e5ddd5;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                         Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes tvOff {
+            0% {
+                transform: scale(1, 1);
+                opacity: 1;
+                filter: brightness(1);
+            }
+            50% {
+                transform: scale(1, 0.05);
+                filter: brightness(5);
+            }
+            100% {
+                transform: scale(0.01, 0);
+                opacity: 0;
+                filter: brightness(0);
+            }
+        }
+
+        #panda-icon {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            cursor: pointer;
+            z-index: 9999;
+        }
+
+        #panda-icon img {
+            width: 70px;
+            transition: transform 0.2s;
+        }
+
+        #panda-icon img:hover {
+            transform: scale(1.1);
+        }
+
+        #panda-chat {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100dvh;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 9999;
+        }
+
+        #panda-chat.open {
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        #panda-chat.closing {
+            animation: tvOff 0.5s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .header {
+            background: #075E54;
+            color: white;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 60px;
+        }
+
+        .header-logo {
+            width: 40px;
+            height: auto;
+            margin-right: 10px;
+        }
+
+        #chat-body {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background-image: url('http://apxid.github.io/assistant/assets/bg.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            display: flex;
+            flex-direction: column;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .bubble {
+            padding: 10px 14px;
+            margin: 8px 15px;
+            border-radius: 15px;
+            max-width: 80%;
+            font-size: 14.5px;
+            line-height: 1.4;
+            position: relative;
+            word-wrap: break-word;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .bubble::after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            width: 15px;
+            height: 15px;
+        }
+
+        .panda {
+            background: white;
+            align-self: flex-start;
+            border-bottom-left-radius: 0;
+            color: #303030;
+        }
+
+        .panda::after {
+            left: -7px;
+            background: white;
+            clip-path: polygon(0 100%, 100% 100%, 100% 0);
+        }
+
+        .user {
+            background: #dcf8c6;
+            align-self: flex-end;
+            border-bottom-right-radius: 0;
+            color: #303030;
+        }
+
+        .user::after {
+            right: -7px;
+            background: #dcf8c6;
+            clip-path: polygon(0 100%, 100% 100%, 0 0);
+        }
+
+        .meta-container {
+            display: flex;
+            align-items: center;
+            align-self: flex-end;
+            margin-top: 4px;
+            margin-bottom: -4px;
+            margin-right: -4px;
+            gap: 3px;
+            user-select: none;
+        }
+
+        .chat-time {
+            font-size: 10px;
+            color: #808080;
+        }
+
+        .ticks {
+            font-size: 11px;
+            line-height: 1;
+            font-weight: bold;
+        }
+
+        .ticks.sent {
+            color: #8696a0;
+        }
+
+        .ticks.read {
+            color: #53bdeb;
+        }
+
+        #input-area {
+            padding: 12px;
+            background: #f0f0f0;
+            display: flex;
+            align-items: center;
+            border-top: 1px solid #ddd;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom));
+        }
+
+        #user-input {
+            flex: 1;
+            padding: 10px 15px;
+            border-radius: 20px;
+            border: 1px solid #ddd;
+            outline: none;
+            font-size: 16px;
+        }
+
+        #send-btn {
+            background: none;
+            border: none;
+            color: #075E54;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0 10px;
+            display: flex;
+            align-items: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="panda-icon" onclick="openChat()">
+        <img src="https://apxid.github.io/assistant/assets/mypanda.gif">
+    </div>
+
+    <div id="panda-chat" class="hidden">
+
+        <div class="header">
+            <div style="display:flex; align-items:center;">
+                <img src="https://apxid.github.io/assistant/assets/panda.png" class="header-logo">
+                <span id="app-name"
+                      style="font-weight:600; font-size:16px; letter-spacing:0.5px;">
+                    PANDA ASSISTANT
+                </span>
+            </div>
+
+            <button
+                onclick="closeChat()"
+                style="background:none;border:none;color:white;font-size:26px;cursor:pointer;line-height:1;">
+                ×
+            </button>
+        </div>
+
+        <div id="chat-body"></div>
+
+        <div id="input-area">
+            <input
+                type="text"
+                id="user-input"
+                placeholder="Ketik pesan..."
+                onkeydown="if(event.key==='Enter') sendMessage()">
+
+            <button id="send-btn" onclick="sendMessage()">➤</button>
+        </div>
+
+    </div>
+
+    <script>
+
+        const GAS_URL =
+            "https://script.google.com/macros/s/AKfycbzMe6SvN_qVVUG48vkCoMphQINZRV3BU_7nEz8cyO13Y5a5iC7xRQD9eH1lFRGwsi8ZNw/exec";
+
+        let isWaitingForName = false;
+        let lastUserMessageElement = null;
+
+        // ==============================
+        // SESSION ID
+        // ==============================
+        let sessionId = localStorage.getItem('panda_session_id');
+
+        if (!sessionId) {
+
+            sessionId =
+                'sess_' +
+                Math.random().toString(36).substring(2, 15) +
+                Date.now().toString(36);
+
+            localStorage.setItem(
+                'panda_session_id',
+                sessionId
+            );
+        }
+
+
+        // ==============================
+        // SERVICE WORKER
+        // ==============================
+        if ('serviceWorker' in navigator) {
+
+            window.addEventListener('load', () => {
+
+                navigator.serviceWorker
+                    .register('sw.js')
+                    .catch(err =>
+                        console.log('SW error:', err)
+                    );
+
+            });
+        }
+
+
+        // ==============================
+        // WAKTU
+        // ==============================
+        function getFormattedTime() {
+
+            const now = new Date();
+
+            return (
+                String(now.getHours()).padStart(2, '0') +
+                ":" +
+                String(now.getMinutes()).padStart(2, '0')
+            );
+        }
+
+
+        // ==============================
+        // BUKA CHAT
+        // ==============================
+        function openChat() {
+
+            document.getElementById(
+                'panda-icon'
+            ).style.display = 'none';
+
+            const chat =
+                document.getElementById('panda-chat');
+
+            chat.classList.remove(
+                'hidden',
+                'closing'
+            );
+
+            chat.classList.add('open');
+
+            if (
+                document.getElementById(
+                    'chat-body'
+                ).innerHTML === ""
+            ) {
+
+                const savedName =
+                    localStorage.getItem('panda_user');
+
+                if (savedName) {
+
+                    addMessage(
+                        `Halo kembali ${savedName}! Ada yang bisa dibantu?`,
+                        'panda'
+                    );
+
+                    isWaitingForName = false;
+
+                } else {
+
+                    addMessage(
+                        "Halo! Saya Panda. Siapa nama kamu?",
+                        'panda'
+                    );
+
+                    isWaitingForName = true;
+                }
+            }
+
+            setTimeout(() => {
+
+                document.getElementById(
+                    'user-input'
+                ).focus();
+
+            }, 300);
+        }
+
+
+        // ==============================
+        // TUTUP CHAT
+        // ==============================
+        function closeChat() {
+
+            const chat =
+                document.getElementById('panda-chat');
+
+            chat.classList.remove('open');
+
+            chat.classList.add('closing');
+
+            setTimeout(() => {
+
+                chat.classList.add('hidden');
+
+                document.getElementById(
+                    'panda-icon'
+                ).style.display = 'block';
+
+            }, 500);
+        }
+
+
+        // ==============================
+        // CLEAR CHAT
+        // ==============================
+        function clearChat() {
+
+            const body =
+                document.getElementById('chat-body');
+
+            body.innerHTML = "";
+
+            lastUserMessageElement = null;
+            isWaitingForName = false;
+
+            // Setelah /cls, tampilkan kembali
+            // sapaan awal tanpa menghapus nama pengguna.
+            const savedName =
+                localStorage.getItem('panda_user');
+
+            if (savedName) {
+
+                addMessage(
+                    `Halo kembali ${savedName}! Ada yang bisa dibantu?`,
+                    'panda'
+                );
+
+            } else {
+
+                addMessage(
+                    "Halo! Saya Panda. Siapa nama kamu?",
+                    'panda'
+                );
+
+                isWaitingForName = true;
+            }
+
+            document.getElementById(
+                'user-input'
+            ).focus();
+        }
+
+
+        // ==============================
+        // TAMPILKAN ABOUT
+        // ==============================
+        function showAbout(answer) {
+
+            addMessage(
+                answer ||
+                "PANDA ASSISTANT 🐼\nVersi 1.0\nDeveloped by MB © 2026",
+                'panda'
+            );
+        }
+
+
+        // ==============================
+        // TAMPILKAN HELP
+        // ==============================
+        function showHelp(answer) {
+
+            addMessage(
+                answer ||
+                "Berikut command yang tersedia:\n/cls • /about • /exit • /help",
+                'panda'
+            );
+        }
+
+
+        // ==============================
+        // EKSEKUSI COMMAND
+        // ==============================
+        function executeCommand(data) {
+
+            const action =
+                String(data.action || "")
+                    .trim()
+                    .toUpperCase();
+
+            if (action === "CLS") {
+
+                clearChat();
+                return;
+            }
+
+            if (action === "ABOUT") {
+
+                showAbout(data.answer);
+                return;
+            }
+
+            if (action === "HELP") {
+
+                showHelp(data.answer);
+                return;
+            }
+
+            if (action === "EXIT") {
+
+                // Tampilkan balasan terlebih dahulu,
+                // lalu tutup chatbox.
+                if (data.answer) {
+                    addMessage(data.answer, 'panda');
+                }
+
+                setTimeout(() => {
+                    closeChat();
+                }, 500);
+
+                return;
+            }
+
+            // Command baru yang belum punya
+            // aksi khusus tetap dapat memberikan response.
+            if (data.answer) {
+
+                addMessage(
+                    data.answer,
+                    'panda'
+                );
+            }
+        }
+
+
+        // ==============================
+        // ADD MESSAGE
+        // ==============================
+        function addMessage(text, sender) {
+
+            const body =
+                document.getElementById('chat-body');
+
+            const div =
+                document.createElement('div');
+
+            div.className =
+                `bubble ${sender}`;
+
+            const textSpan =
+                document.createElement('span');
+
+            // innerText menjaga teks command
+            // dan simbol tetap aman.
+            textSpan.innerText =
+                text || "";
+
+            // Mendukung \n pada response Sheet
+            textSpan.style.whiteSpace =
+                "pre-wrap";
+
+            div.appendChild(textSpan);
+
+            const metaContainer =
+                document.createElement('div');
+
+            metaContainer.className =
+                'meta-container';
+
+            const timeSpan =
+                document.createElement('span');
+
+            timeSpan.className =
+                'chat-time';
+
+            timeSpan.innerText =
+                getFormattedTime();
+
+            metaContainer.appendChild(
+                timeSpan
+            );
+
+            if (sender === 'user') {
+
+                const ticksSpan =
+                    document.createElement('span');
+
+                ticksSpan.className =
+                    'ticks sent';
+
+                ticksSpan.innerHTML =
+                    '&#10004;&#10004;';
+
+                metaContainer.appendChild(
+                    ticksSpan
+                );
+
+                lastUserMessageElement =
+                    ticksSpan;
+            }
+
+            div.appendChild(
+                metaContainer
+            );
+
+            body.appendChild(div);
+
+            body.scrollTop =
+                body.scrollHeight;
+        }
+
+
+        // ==============================
+        // KIRIM PESAN
+        // ==============================
+        async function sendMessage() {
+
+            const input =
+                document.getElementById('user-input');
+
+            const val =
+                input.value.trim();
+
+            if (!val) {
+                return;
+            }
+
+            addMessage(
+                val,
+                'user'
+            );
+
+            input.value = "";
+
+            const currentSessionId =
+                localStorage.getItem(
+                    'panda_session_id'
+                ) || sessionId;
+
+
+            // ==============================
+            // INPUT NAMA
+            // ==============================
+            if (isWaitingForName) {
+
+                localStorage.setItem(
+                    'panda_user',
+                    val
+                );
+
+                isWaitingForName = false;
+
+                if (lastUserMessageElement) {
+
+                    lastUserMessageElement
+                        .className =
+                        'ticks read';
+                }
+
+                try {
+
+                    const url =
+                        `${GAS_URL}?question=${encodeURIComponent("perkenalan_nama")}` +
+                        `&userName=${encodeURIComponent(val)}` +
+                        `&sessionId=${encodeURIComponent(currentSessionId)}`;
+
+                    await fetch(
+                        url,
+                        { method: 'GET' }
+                    );
+
+                    console.log(
+                        "Nama berhasil dikirim:",
+                        val,
+                        "Session:",
+                        currentSessionId
+                    );
+
+                } catch (e) {
+
+                    console.log(
+                        "Gagal mengirim nama:",
+                        e
+                    );
+                }
+
+                addMessage(
+                    `Halo ${val}! Apa yang ingin ditanyakan?`,
+                    'panda'
+                );
+
+                return;
+            }
+
+
+            // ==============================
+            // TYPING
+            // ==============================
+            const typing =
+                document.createElement('div');
+
+            typing.className =
+                'bubble panda';
+
+            typing.innerHTML =
+                "<i>Panda sedang mengetik...</i>";
+
+            document.getElementById(
+                'chat-body'
+            ).appendChild(typing);
+
+            document.getElementById(
+                'chat-body'
+            ).scrollTop =
+                document.getElementById(
+                    'chat-body'
+                ).scrollHeight;
+
+            const currentTicks =
+                lastUserMessageElement;
+
+
+            // ==============================
+            // REQUEST KE GAS
+            // ==============================
+            try {
+
+                const currentUserName =
+                    localStorage.getItem(
+                        'panda_user'
+                    ) || 'Pengunjung';
+
+                const url =
+                    `${GAS_URL}?question=${encodeURIComponent(val)}` +
+                    `&userName=${encodeURIComponent(currentUserName)}` +
+                    `&sessionId=${encodeURIComponent(currentSessionId)}`;
+
+                const res =
+                    await fetch(
+                        url,
+                        { method: 'GET' }
+                    );
+
+                const data =
+                    await res.json();
+
+                typing.remove();
+
+                if (currentTicks) {
+
+                    currentTicks.className =
+                        'ticks read';
+                }
+
+
+                // ==============================
+                // COMMAND
+                // ==============================
+                if (data.command === true) {
+
+                    executeCommand(data);
+
+                    return;
+                }
+
+
+                // ==============================
+                // FAQ
+                // ==============================
+                addMessage(
+                    data.answer ||
+                    "Maaf, Panda belum tahu jawabannya.",
+                    'panda'
+                );
+
+            } catch (err) {
+
+                typing.remove();
+
+                addMessage(
+                    "Maaf, koneksi gagal.",
+                    'panda'
+                );
+
+                console.error(
+                    "PANDA ERROR:",
+                    err
+                );
+            }
+        }
+
+    </script>
+
+</body>
+</html>
