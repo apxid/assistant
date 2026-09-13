@@ -560,18 +560,12 @@
             const textSpan =
                 document.createElement('span');
 
-            // Mendukung <br>, <br/> dan <br /> dari Sheet CMD.
-            // Tag <br> diubah menjadi baris baru, sementara
-            // teks lainnya tetap ditampilkan sebagai teks biasa
-            // agar HTML dari Sheet tidak dieksekusi.
-            const safeText =
-                String(text || "")
-                    .replace(/<br\\s*\\/?>/gi, "\\n");
-
+            // innerText menjaga teks command
+            // dan simbol tetap aman.
             textSpan.innerText =
-                safeText;
+                text || "";
 
-            // Mendukung baris baru dari response Sheet.
+            // Mendukung \n pada response Sheet
             textSpan.style.whiteSpace =
                 "pre-wrap";
 
