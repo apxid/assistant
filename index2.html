@@ -19,7 +19,7 @@
             padding: 0;
             width: 100%;
             height: 100%;
-            background-image: url('http://apxid.github.io/assistant/assets/bg.png');
+            background-image: url('https://apxid.github.io/assistant/assets/bg.png');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -123,7 +123,7 @@
             flex: 1;
             padding: 15px;
             overflow-y: auto;
-            background-image: url('http://apxid.github.io/assistant/assets/bg.png');
+            background-image: url('https://apxid.github.io/assistant/assets/bg.png');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -280,6 +280,8 @@
 
     <script>
 
+        // URL Web App Apps Script.
+        // Pastikan deployment GAS memakai versi terbaru.
         const GAS_URL =
             "https://script.google.com/macros/s/AKfycbzMe6SvN_qVVUG48vkCoMphQINZRV3BU_7nEz8cyO13Y5a5iC7xRQD9eH1lFRGwsi8ZNw/exec";
 
@@ -621,6 +623,126 @@
         // ==============================
         // KIRIM PESAN
         // ==============================
+        // ==============================
+        // JSONP REQUEST - ANTI CORS
+        // ==============================
+        function requestPanda(question, userName, sessionId) {
+
+            return new Promise((resolve, reject) => {
+
+                const callbackName =
+                    "pandaCallback_" +
+                    Date.now() +
+                    "_" +
+                    Math.random()
+                        .toString(36)
+                        .substring(2, 8);
+
+                const script =
+                    document.createElement("script");
+
+                let finished = false;
+
+                const cleanup = () => {
+
+                    finished = true;
+
+                    if (script.parentNode) {
+                        script.parentNode.removeChild(script);
+                    }
+
+                    try {
+                        delete window[callbackName];
+                    } catch (e) {
+                        window[callbackName] = undefined;
+                    }
+                };
+
+                const timer =
+                    setTimeout(() => {
+
+                        if (finished) return;
+
+                        cleanup();
+
+                        reject(
+                            new Error(
+                                "Server Panda tidak merespons dalam 20 detik."
+                            )
+                        );
+
+                    }, 20000);
+
+                window[callbackName] =
+                    function(data) {
+
+                        if (finished) return;
+
+                        clearTimeout(timer);
+
+                        cleanup();
+
+                        resolve(data);
+                    };
+
+                script.onerror =
+                    function() {
+
+                        if (finished) return;
+
+                        clearTimeout(timer);
+
+                        cleanup();
+
+                        reject(
+                            new Error(
+                                "Tidak dapat menghubungi server Panda."
+                            )
+                        );
+                    };
+
+                const params = new URLSearchParams();
+
+                params.set(
+                    "question",
+                    question || ""
+                );
+
+                params.set(
+                    "userName",
+                    userName || "Pengunjung"
+                );
+
+                params.set(
+                    "sessionId",
+                    sessionId || ""
+                );
+
+                params.set(
+                    "callback",
+                    callbackName
+                );
+
+                params.set(
+                    "_",
+                    Date.now().toString()
+                );
+
+                script.src =
+                    GAS_URL +
+                    (GAS_URL.includes("?") ? "&" : "?") +
+                    params.toString();
+
+                script.async = true;
+
+                document.head.appendChild(script);
+            });
+        }
+
+
+        // ==============================
+        // KIRIM PESAN
+        // ==============================
         async function sendMessage() {
 
             const input =
@@ -665,29 +787,22 @@
                         'ticks read';
                 }
 
+                // Simpan nama ke GAS.
                 try {
 
-                    const url =
-                        `${GAS_URL}?question=${encodeURIComponent("perkenalan_nama")}` +
-                        `&userName=${encodeURIComponent(val)}` +
-                        `&sessionId=${encodeURIComponent(currentSessionId)}`;
-
-                    await fetch(
-                        url,
-                        { method: 'GET' }
-                    );
-
-                    console.log(
-                        "Nama berhasil dikirim:",
+                    await requestPanda(
+                        "perkenalan_nama",
                         val,
-                        "Session:",
                         currentSessionId
                     );
 
                 } catch (e) {
 
-                    console.log(
-                        "Gagal mengirim nama:",
+                    // Nama tetap tersimpan di browser.
+                    // Kegagalan sinkronisasi nama tidak
+                    // menghalangi pengguna memakai chat.
+                    console.warn(
+                        "Sinkronisasi nama gagal:",
                         e
                     );
                 }
@@ -729,7 +844,7 @@
 
 
             // ==============================
-            // REQUEST KE GAS
+            // REQUEST KE GAS VIA JSONP
             // ==============================
             try {
 
@@ -738,19 +853,12 @@
                         'panda_user'
                     ) || 'Pengunjung';
 
-                const url =
-                    `${GAS_URL}?question=${encodeURIComponent(val)}` +
-                    `&userName=${encodeURIComponent(currentUserName)}` +
-                    `&sessionId=${encodeURIComponent(currentSessionId)}`;
-
-                const res =
-                    await fetch(
-                        url,
-                        { method: 'GET' }
-                    );
-
                 const data =
-                    await res.json();
+                    await requestPanda(
+                        val,
+                        currentUserName,
+                        currentSessionId
+                    );
 
                 typing.remove();
 
@@ -758,6 +866,20 @@
 
                     currentTicks.className =
                         'ticks read';
+                }
+
+
+                // ==============================
+                // VALIDASI RESPONSE
+                // ==============================
+                if (
+                    !data ||
+                    typeof data !== "object"
+                ) {
+
+                    throw new Error(
+                        "Response server tidak valid."
+                    );
                 }
 
 
@@ -785,8 +907,14 @@
 
                 typing.remove();
 
+                if (currentTicks) {
+
+                    currentTicks.className =
+                        'ticks sent';
+                }
+
                 addMessage(
-                    "Maaf, koneksi gagal.",
+                    "Maaf, koneksi ke Panda gagal. Coba kirim ulang.",
                     'panda'
                 );
 
